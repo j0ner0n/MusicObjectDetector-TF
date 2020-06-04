@@ -46,6 +46,8 @@ COPY standalone_inference_over_image.py /code/standalone_inference_over_image.py
 COPY category_mapping.txt /code/category_mapping.txt
 
 # Set the entry point
-ENTRYPOINT ["python", "/code/standalone_inference_over_image.py", "--detection_inference_graph", "/code/model.pb", \
-            "--input_directory", "/workspace", "--detection_label_map", "/code/category_mapping.txt", \
-            "--output_dir", "/workspace/output"]
+ENTRYPOINT [ "python", "/code/standalone_inference_over_image.py" ]
+CMD [ "--detection_inference_graph", "/code/model.pb", \
+      "--input_directory", "/workspace", \
+      "--detection_label_map", "/code/category_mapping.txt", \
+      "--output_dir", "/workspace/output" ]
