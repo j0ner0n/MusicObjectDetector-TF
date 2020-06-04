@@ -50,3 +50,7 @@ Note that there are no default arguments. The usage of any argument will thus re
 Here, we assume that you want to still perform inference on files in the `/sheet_music` directory. The `/sheet_music` directory is then mapped to `/workspace/` in the docker container.
 
 For further reference on running optional arguments, refer to the [official documentation](https://docs.docker.com/engine/reference/run/#entrypoint-default-command-to-execute-at-runtime) for `docker run`.
+
+## Downloading the trained model
+
+A model pretrained on MUSCIMA++ can be downloaded from the [releases page](https://github.com/apacha/MusicObjectDetector-TF/releases/tag/full-page-detection-v2)
