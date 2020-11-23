@@ -4,20 +4,21 @@ from lxml import etree
 from typing import List, Tuple
 
 from lxml.etree import Element, SubElement
+from mung.node import Node
 from muscima.cropobject import CropObject
 
 
-def create_annotations_in_pascal_voc_format_from_crop_objects(annotations_folder: str,
-                                                              file_name: str,
-                                                              crop_objects_appearing_in_image: List[CropObject],
-                                                              image_width: int,
-                                                              image_height: int,
-                                                              image_depth: int):
+def create_annotations_in_pascal_voc_format_from_nodes(annotations_folder: str,
+                                                       file_name: str,
+                                                       nodes_appearing_in_image: List[Node],
+                                                       image_width: int,
+                                                       image_height: int,
+                                                       image_depth: int):
     objects_appearing_in_image = []
-    for detected_object in crop_objects_appearing_in_image:
-        class_name = detected_object.clsname
+    for detected_object in nodes_appearing_in_image:
+        class_name = detected_object.class_name
         bounding_box = detected_object.bounding_box
-        objects_appearing_in_image.append(("", class_name, bounding_box))
+        objects_appearing_in_image.append((file_name, class_name, bounding_box))
 
     create_annotations_in_pascal_voc_format(annotations_folder, file_name, objects_appearing_in_image,
                                             image_width, image_height, image_depth)
@@ -41,7 +42,7 @@ def create_annotations_in_pascal_voc_format(annotations_folder: str,
     database = SubElement(source, "database")
     database.text = "MUSCIMA++"
     source_annotation = SubElement(source, "annotation")
-    source_annotation.text = "MUSCIMA++ (v1.0)"
+    source_annotation.text = "MUSCIMA++ (v2.0)"
     image = SubElement(source, "image")
     image.text = "CVC-MUSCIMA"
     size = SubElement(annotation, "size")

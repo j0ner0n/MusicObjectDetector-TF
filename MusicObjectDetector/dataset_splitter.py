@@ -97,7 +97,7 @@ if __name__ == "__main__":
     parser.add_argument(
         "--source_directory",
         type=str,
-        default="data/muscima_pp/v1.0/data/images",
+        default="data/muscima_pp/v2.0/data/images",
         help="The directory, where the images should be copied from")
     parser.add_argument(
         "--destination_directory",
@@ -108,7 +108,7 @@ if __name__ == "__main__":
     parser.add_argument(
         "--independent_set",
         type=str,
-        default="data/muscima_pp/v1.0/specifications/testset-independent.txt",
+        default="data/muscima_pp/v2.0/specifications/testset-independent.txt",
         help="text file with independent writer set")
 
     flags, unparsed = parser.parse_known_args()
