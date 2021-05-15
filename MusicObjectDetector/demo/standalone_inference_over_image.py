@@ -4,7 +4,7 @@ import os.path as osp
 
 # Ignore future warnings from numpy
 import warnings
-warnings.simplefilter(action='ignore', category=FutureWarning)
+#warnings.simplefilter(action='ignore', category=FutureWarning)
 import cv2
 import numpy as np
 import tensorflow as tf
@@ -114,17 +114,19 @@ def parse_args():
 
 if __name__ == "__main__":
     args = parse_args()
+    print('Parsed arguments')
     # The next line forces Tensorflow on Windows to run the computation on CPU
     # os.environ['CUDA_VISIBLE_DEVICES'] = '1'
 
     # Make sure the output dir exists
-    os.makedirs(args.output_dir)
+    os.makedirs(args.output_dir, exist_ok=True)
 
     # Build category map
     detection_cat_mapping = build_map(args.detection_label_map)
     class_idx_mapping = {value: key
                          for key, value in detection_cat_mapping.items()}
 
+    print('Loading graph')
     # Read frozen graphs
     detection_graph = load_detection_graph(args.detection_inference_graph)
 
@@ -140,22 +142,40 @@ if __name__ == "__main__":
     with detection_graph.as_default():
         with tf.Session() as sess:
             default_graph = tf.get_default_graph()
+            
+            # tensors = [n.name for n in tf.get_default_graph().as_graph_def().node]
+            # softmax_tensors = []
+            # softmax_keys = ('Softmax', 'SecondStagePostprocessor/Softmax')
+            # for key in softmax_keys:
+            #     tensor_name = key + ':0'
+            #     if tensor_name in tensors:
+            #         softmax_tensors.append(tf.get_default_graph().get_tensor_by_name(tensor_name))
+                    
+                    
+                   
+            #print([tensor for tensor in tensors if 'softmax' in tensor.lower()])
+            
             ops = default_graph.get_operations()
             all_tensor_names = {output.name
                                 for op in ops
                                 for output in op.outputs}
             tensor_dict = {}
             keys_to_check = ('num_detections', 'detection_boxes',
-                             'detection_scores', 'detection_classes')
+                             'detection_scores', 'detection_classes',
+                             'Softmax', 'SecondStagePostprocessor/Softmax',
+                             'SecondStagePostprocessor/convert_scores',
+                             'SecondStagePostprocessor/BatchMultiClassNonMaxSuppression/map/TensorArrayStack_1/TensorArrayGatherV3',
+                             'SecondStagePostprocessor/BatchMultiClassNonMaxSuppression/map/TensorArrayStack_2/TensorArrayGatherV3',
+                             'SecondStagePostprocessor/BatchMultiClassNonMaxSuppression/map/TensorArray_7',
+                             'SecondStagePostprocessor/Reshape_4')
             for key in keys_to_check:
                 tensor_name = key + ':0'
                 if tensor_name in all_tensor_names:
                     tensor_dict[
                         key] = tf.get_default_graph().get_tensor_by_name(
                         tensor_name)
-
             # Now iterate through images
-            print("running detection")
+            print("Running detection segment")
             image_arrays = []
             raw_images = []
             for img_name in tqdm(valid_images):
@@ -164,8 +184,10 @@ if __name__ == "__main__":
 
                 # Opencv Image (draw)
                 image_cv = cv2.imread(img_fp)
+                # Invert the images from black-white to white-black
+                image_cv = cv2.bitwise_not(image_cv)
                 # Resize everything to the same size. This size is A4 at 144 DPI
-                image_cv = cv2.resize(image_cv, (1190, 1684))
+                #image_cv = cv2.resize(image_cv, (1190, 1684))
                 height, width, _ = image_cv.shape
                 raw_images.append({
                     'image_name': img_name,
@@ -191,7 +213,8 @@ if __name__ == "__main__":
                 image_tensor = default_graph.get_tensor_by_name(
                     'image_tensor:0'
                 )
-
+                    
+                print('Inference')
                 session_result = sess.run(
                     tensor_dict,
                     feed_dict={image_tensor: stacked_array}
@@ -220,8 +243,9 @@ if __name__ == "__main__":
                     img_name = raw_image['image_name']
                     image_height = raw_image['height']
                     image_width = raw_image['width']
+                    print(out_dict['num_detections'])
                     for idx in range(out_dict['num_detections']):
-                        if out_dict['detection_scores'][idx] > 0.5:
+                        if out_dict['detection_scores'][idx] > 0.3:
                             # Only draw rectangles with a score above 0.5
                             y1, x1, y2, x2 = out_dict['detection_boxes'][idx]
 
@@ -233,7 +257,7 @@ if __name__ == "__main__":
                                 out_dict['detection_classes'][idx]
                             ]
 
-                            output_line = "{:.3f},{:.3f},{:.3f},{:.3f};{}"\
+                            output_line = "{:.3f},{:.3f},{:.3f},{:.3f},{}"\
                                 .format(x1, y1, x2, y2, detected_class)
                             output_lines.append(output_line)
 
@@ -244,17 +268,49 @@ if __name__ == "__main__":
                             cv2.rectangle(image_cv, (int(x1), int(y1)),
                                           (int(x2), int(y2)), color_rgb, 3)
 
-                        else:
-                            # Once we get to a score below 0.5, the rest will presumably
-                            # also be below 0.5 so we stop
-                            break
+                        # else:
+                        #     # Once we get to a score below 0.5, the rest will presumably
+                        #     # also be below 0.5 so we stop
+                        #     break
 
                     cv2.imwrite(osp.join(args.output_dir, img_name), image_cv)
 
                     text_file_fp = osp.join(args.output_dir,
                                             osp.splitext(img_name)[0] + '.csv')
-
+                    
+                    
+                    # with open(osp.join(args.output_dir, 'layer_softmax.csv'), 'w') as file:
+                    #     session_result['Softmax'].tofile(file, ',')
+                        
+                    # 1200 objects x 106 classes
+                    with open(osp.join(args.output_dir, 'SecondStagePostprocessor_Softmax.csv'), 'w') as file:
+                        session_result['SecondStagePostprocessor/Softmax'].tofile(file, ',')
+                    # # Identical to above
+                    # with open(osp.join(args.output_dir, 'SecondStagePostprocessor_convert_scores.csv'), 'w') as file:
+                    #     session_result['SecondStagePostprocessor/convert_scores'].tofile(file, ',')
+                    
+                    # 1000 final scores which are sorted > 0.3 threshold as valid predictions
+                    with open(osp.join(args.output_dir, 'SecondStagePostprocessor_final_scores.csv'), 'w') as file:
+                        session_result['SecondStagePostprocessor/BatchMultiClassNonMaxSuppression/map/TensorArrayStack_1/TensorArrayGatherV3'].tofile(file, ',')
+                        
+                    # ?
+                    with open(osp.join(args.output_dir, 'SecondStagePostprocessor_Reshape_4.csv'), 'w') as file:
+                        session_result['SecondStagePostprocessor/Reshape_4'].tofile(file, ',')
+                        
+                    # Hopefully 1000 class distributions but sadly only 1000 final classes with their IDs
+                    with open(osp.join(args.output_dir, 'SecondStagePostprocessor_TAS2_TAGV3.csv'), 'w') as file:
+                        session_result['SecondStagePostprocessor/BatchMultiClassNonMaxSuppression/map/TensorArrayStack_2/TensorArrayGatherV3'].tofile(file, ',')
+                        
+                    # Going backwards from above, hopefully getting capped probability distribution as is used in the end?
+                    with open(osp.join(args.output_dir, 'SecondStagePostprocessor_TA7.csv'), 'w') as file:
+                        session_result['SecondStagePostprocessor/BatchMultiClassNonMaxSuppression/map/TensorArray_7'].tofile(file, ',')
+                        
                     with open(text_file_fp, "w") as output_file:
                         output_file.write("\n".join(output_lines))
-
+                        
+                     # View model without interference
+                    # writer = tf.summary.FileWriter(args.output_dir, graph=sess.graph)
+                    # writer.flush()
+                    # writer.close()
+                    exit(1)
                 raw_images = []

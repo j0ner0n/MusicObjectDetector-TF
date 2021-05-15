@@ -42,8 +42,11 @@ RUN pip install opencv-python~=4.2.0 \
 RUN mkdir -p /code \
     && wget -O /code/model.pb https://github.com/apacha/MusicObjectDetector-TF/releases/download/full-page-detection-v2/2018-07-30_faster-rcnn_inception-resnet-v2_full-page_muscima.pb
 
+# RUN mkdir -p /code \
+#     && wget -O /code/model.pb https://github.com/apacha/MusicObjectDetector-TF/releases/download/crop-images-detection/2018-01-24_faster-rcnn_inception-resnet-v2_crop-image-object-detection_muscima-pp.pb
+
 COPY standalone_inference_over_image.py /code/standalone_inference_over_image.py
-COPY category_mapping.txt /code/category_mapping.txt
+COPY category_mapping_fixed.txt /code/category_mapping.txt
 
 # Set the entry point
 ENTRYPOINT [ "python", "/code/standalone_inference_over_image.py" ]
